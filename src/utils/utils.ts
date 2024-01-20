@@ -36,7 +36,7 @@ export function ensureElement<T extends HTMLElement>(selectorElement: SelectorEl
         if (elements.length === 0) {
             throw new Error(`selector ${selectorElement} return nothing`);
         }
-        return elements.pop() as T;
+        return elements.shift() as T;
     }
     if (selectorElement instanceof HTMLElement) {
         return selectorElement as T;
@@ -65,6 +65,7 @@ export function getObjectProperties(obj: object, filter?: (name: string, prop: P
             Object.getPrototypeOf(obj)
         )
     )
+      // тут дважды запускается фильтр?
         .filter(([name, prop]: [string, PropertyDescriptor]) => filter ? filter(name, prop) : (name !== 'constructor'))
         .map(([name, prop]) => name);
 }

@@ -1,7 +1,7 @@
 // Хорошая практика даже простые типы выносить в алиасы
 // Зато когда захотите поменять это достаточно сделать в одном месте
-type EventName = string | RegExp;
-type Subscriber = Function;
+export type EventName = string | RegExp;
+export type Subscriber = Function;
 type EmitterEvent = {
     eventName: string,
     data: unknown
@@ -19,30 +19,30 @@ export interface IEvents {
  * или слушать события по шаблону например
  */
 export class EventEmitter implements IEvents {
-    _events: Map<EventName, Set<Subscriber>>;
+    events: Map<EventName, Set<Subscriber>>;
 
     constructor() {
-        this._events = new Map<EventName, Set<Subscriber>>();
+        this.events = new Map<EventName, Set<Subscriber>>();
     }
 
     /**
      * Установить обработчик на событие
      */
     on<T extends object>(eventName: EventName, callback: (event: T) => void) {
-        if (!this._events.has(eventName)) {
-            this._events.set(eventName, new Set<Subscriber>());
+        if (!this.events.has(eventName)) {
+            this.events.set(eventName, new Set<Subscriber>());
         }
-        this._events.get(eventName)?.add(callback);
+        this.events.get(eventName)?.add(callback);
     }
 
     /**
      * Снять обработчик с события
      */
     off(eventName: EventName, callback: Subscriber) {
-        if (this._events.has(eventName)) {
-            this._events.get(eventName)!.delete(callback);
-            if (this._events.get(eventName)?.size === 0) {
-                this._events.delete(eventName);
+        if (this.events.has(eventName)) {
+            this.events.get(eventName)!.delete(callback);
+            if (this.events.get(eventName)?.size === 0) {
+                this.events.delete(eventName);
             }
         }
     }
@@ -51,7 +51,7 @@ export class EventEmitter implements IEvents {
      * Инициировать событие с данными
      */
     emit<T extends object>(eventName: string, data?: T) {
-        this._events.forEach((subscribers, name) => {
+        this.events.forEach((subscribers, name) => {
             if (name instanceof RegExp && name.test(eventName) || name === eventName) {
                 subscribers.forEach(callback => callback(data));
             }
@@ -69,7 +69,7 @@ export class EventEmitter implements IEvents {
      * Сбросить все обработчики
      */
     offAll() {
-        this._events = new Map<string, Set<Subscriber>>();
+        this.events = new Map<string, Set<Subscriber>>();
     }
 
     /**
