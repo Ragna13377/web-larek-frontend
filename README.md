@@ -43,187 +43,280 @@ yarn build
 
 ## Компоненты модели данных (бизнес логика)
 
-В папке проекта types представлены основные интерфейсы продукта и заказа, основанные на API сервера:
-```javascript
-export interface ICard {
-id: string;
-title: string;
-description: string;
-category: string;
-image: string;
-price: number | null;
-}
-```
+## Базовые классы
+
+### 1. Класс `Api` работы с базовыми запросами к серверу
+
+Методы `get(uri: string)` и `post(uri: string, data: object, method: ApiPostMethods = 'POST')` осуществляют базовые get и post запросы к серверу  
+Метод `handleResponse(response: Response): Promise<object>` - осуществляет обработку пришедшего ответа с сервера (парсинг JSON, обработка ошибки)  
 
 ```javascript
-export interface IOrder {
-payments: string;
-address: string;
-email: string;
-phone: string;
-items: ICard[];
+type ApiListResponse<Type> = {
+    total: number,
+    items: Type[]
+};
+
+type ApiOrderResponse<Type> = {
+    total: number,
+    id: string
 }
 ```
-### 1. Класс `View< NodeType extends HTMLElement, DataType extends object, Events extends string, Modifiers extends string> extends EventEmitter`
-Он наследует все базовые методы EventEmitter.  
-Собственные свойства класса:
-* `protected node: NodeType` - элемент в формате HTMLElement
-* `protected elements: Record<string, ViewElement>` - кэш дочерних элементов
-* `readonly fieldNames: string[]` - свойства элемента доступные к присваиванию
-* `readonly name: string` - имя элемента
- 
-#### Для работы с html элементами используются методы:
-* `setText(value: string)` - установка текста или альтернативного текста для картинок
-* `setLink(value: string)` - установка ссылок для картинок и ссылочных элементов
-* `getValue(): string` - получение данные из поля ввода
-* `disable()` - отключение интерактивности кнопки
-* `enable()` - включение интерактивности кнопки
-* `toggleDisabled(state?: boolean)` - переключение режима интерактивности кнопки, опционально можно передать конкретный параметр для установки атрибута `disabled`
-#### Методы валидации:
-* `isValid()` - проверка правильности введенного значения в поле ввода
-* `getValidationMessage(): string | undefined` - получение сообщения об ошибке из data атрибута `validation-message` или стандартного из `validationMessage`. Возвращает `undefined` в случае, когда нет ошибки ввода.
-#### Методы работы с классами:
-* `addClass(className: string)` - добавление класса элементу
-* `removeClass(className: string)` - удаление класса с элемента
-* `toggleClass(className: string, state?: boolean)` - переключение добавления/удаления класса. Опциональный параметр добавляет/удаляет класс аналогично `addClass` и `disable`
-* `hasClass(className: string): boolean` - проверка наличия класса на элементе
-* `toggle(modifier?: Modifiers, state?: boolean)` - переключение добавления/удаления класса элемента по модификатору (БЭМ)
-#### Методы работы с контентом:
-* `clear()` - удаляет все содержимое элемента
-* `replace(...items: ContentValue[])` - замена содержимого элемента
-* `setContent(item?: ContentValue)` - замена содержимого элемента. Если передан без параметра, то очистка содержимого элемента
-* `append(...items: ContentValue[])` - вставка узла или текста в конец элемента
-* `prepend(...items: ContentValue[])` - вставка узла или текста в начало элемента
-#### Методы работы с элементами:
-* `static clone<T extends ViewElement>(templateId: string, data?: object, name?: string): T` - клонирование из шаблона в HTML и заполнение данными элемента (базовый метод `cloneTemplate` принимает только 1 аргумент - селектор и не позволяет сразу получить данные и установить их)
-* `static mount<T extends ViewElement>(selectorElement: HTMLElement | string, data?: object, name?: string): T` - копирование элемента c HTML, не находящегося в шаблоне, и заполнение данными
-* `public static factory<T extends ViewElement>(this: new (el: unknown, name?: string) => T, el: unknown, data?: object, name?: string): T` - фабричный метод создания и заполнения данными элемента
-* `render(data?: DataType): NodeType` - получение самого HTML-элемента с возможностью заполнения данными
-* `protected assign(data?: Record<string, any> & DataType)` - заполнение данными элемента (заполняются только те поля, которые присутствуют в HTMLElement)  
-* `protected select<T extends ViewElement>(name: string, selector?: string, ClassType?: new (el: HTMLElement, name: string) => T): T` - добавляет в кэш элемента дочерний элемент
-* `protected element<T extends ViewElement>(name: string, ClassType?: new (el: HTMLElement, name: string) => T): T` - обобщает работу поиска дочернего элемента
+`ApiListResponse` и `ApiOrderResponse` - типы ответов сервера по запросам `product` и `order`
 
-Методы родительского класса (on, off, emit) переписаны для добавления возможности вызова по цепочке
-`bindEmitter(events: Map<EventName, Set<Subscriber>>)` - альтернативный способу `on` добавления нескольких событий и обработчиков событий в `EventEmitter` элемента
-`bindEvent(sourceEvent: string, targetEvent?: Events, data?: object)` - установка слушателя событий на элементе с опциональной возможностью установки собственного названия события
+### 2. Класс `CardAPI extends Api implements ICardAPI` кастомных запросов к серверу
 
-### 1. Класс `class Basket extends View< HTMLDivElement, ICard[], 'add-item' | 'remove-item', never >`
-
-Содержит функционал работы с корзиной. В интерфейсе содержится HTML-шаблон товара и ключ, по которому сохраняется значение в `localStorage`
-```
-interface BasketConfiguration {
-    basketCardTemplate: string;
-    basketStorageKey: string;
-}
-```
-Собственные свойства:
-* `protected _basketCardTemplate: Card`
-* `protected _basketCards: Map<string, ICard> = new Map()`
-* `protected _storageKey: string`
-
-Методы:
-* `save()` - сохранение корзины в `localStorage`
-* `load()` - загрузка корзины из `localStorage`  
-* `addCard(item: ICard): string` - добавление товара в корзину
-* `removeCard(id: string)` - удаление товара из корзины
-* `clearTickets()` - очистка корзины
-* `configure({ ticketTemplate, basketStorageKey }: BasketConfiguration)` - базовая конфигурация корзины (установка шаблона и ключа сохранения в `localStorage`)
-* `static total()` - получение цены заказа
-* `startOrder()` - переключает модальное окно для заполнения контактной информации и способов платежа
-
-### 2. Класс `Card extends View<HTMLButtonElement, ICardData, 'click', never>`  
-
-Описывает поведение карточки в галерее
-```
-interface ICardGallery {
-  image: string;
-  title: string;
-  price: number | null;
-  category: string;
-  description: string;
-}
-```
-Собственные методы:
-`getFullInfo()` - показ модального окна с полной информацией о товаре
-
-### 3. Класс `CardAPI extends Api implements ICardAPI` 
-
-Класс отвечающий за взаимодействие с сервером.  
-```
+```javascript
 interface ICardAPI {
-  getCards: () => Promise<ICard[]>;
+  getCards: () => Promise<ICard[]>
   sendOrder: (order: IOrder) => Promise<IOrderResult>
 }
 ```
-Собственные методы:  
-* `getCards(): Promise<ICard[]>` - получение массива карточек товаров с сервера
-* `sendOrder: (order: IOrder) => Promise<IOrderResult>` - отправка готового заказа на сервер
 
-### 4. `Success extends View<HTMLDivElement, never, 'close', never>` 
+* `getCards` - получает с сервера информацию о карточках товаров
+* `sendOrder` - отправляет готовый заказ на сервер
 
-Класс описывает элемент успешного оформления заказа в модальном окне
+### 3. Класс `EventEmitter implements IEvents` брокера событий
 
-Собственные методы:
-* `showSuccess()` - формирует шаблон успешного оформления, показывает сумму заказа и очищает корзину
-
-### 5. `BasketItem extends View<HTMLDivElement, ICard, 'delete', never>`
-
-Класс описывает элемент в корзине
-
-### 6. `Order extends View< HTMLDivElement, never, 'change' | 'submit', never>`
-
-Класс описывает структуру заказа.  
-Собственные методы:
-* `orderForm()` - проводит валидацию модального окна с заполнением способа платежа и адреса доставки
-* `contactForm()` - проводит валидацию модального окна с формой контактов
-
-### 7. `export class Page extends View< HTMLButtonElement, IPage, 'buy-card' | 'open-basket', 'locked'>`
-
-Класс описывает структуру главной страницы с галереей карточек и хэдером
+```javascript
+interface IEvents {
+    on<T extends object>(event: EventName, callback: (data: T) => void): void;
+    emit<T extends object>(event: string, data?: T): void;
+    trigger<T extends object>(event: string, context?: Partial<T>): (data: T) => void;
+}
 ```
+* `on` - подписывает элемент на конкретное событие в `EventEmitter`  
+* `onAll(callback: (event: EmitterEvent) => void)` - подписывает элемент на все события в `EventEmitter`  
+* `off(eventName: EventName, callback: Subscriber)` - отписывает элемент с события в `EventEmitter`  
+* `offAll()` - сбрасывает все события в `EventEmitter`  
+* `emit` - запускает событие в `EventEmitter`  
+* `trigger` - создает коллбек триггер, генерирующий событие при вызове  
+
+### 4. Класс `Component<NodeType extends HTMLElement>` базовых событий всех элементов  
+
+* `setText(value: string)` - устанавливает текст компоненте или альтернативный текст в изображении
+* `setLink(value: string)` - устанавливает ссылку в изображении или в ссылочном компоненте
+* `getInputValue(): string` - получает значение из поля ввода
+* `addClass(className: string)` - добавляет класс компоненту
+* `removeClass(className: string)` - удаляет класс с компонента
+* `hasClass(className: string): boolean` - проверяет наличие класса у компонента
+* `toggleClass(className: string, state?: boolean)` - переключает класс в компоненте
+* `toggle(modifier: string, state?: boolean)` - переключает класс по модификатору в компоненте
+* `disable()` - делает кнопку неактивной
+* `enable()` - делает кнопку активной
+* `toggleDisabled(state?: boolean)` - переключает состояние активации кнопки
+* `isValid()` - проверяет валидацию поля ввода
+* `getValidationMessage(): string | undefined` - получает сообщение об ошибке валидации поля ввода
+* `getAttribute(value: string): string` - получает по имени атрибут компонента
+* `remove()` - удаляет элемента из DOM
+* `clear()` - удаляет контент компонента
+* `setContent(item?: ContentValue)` - устанавливает контент компоненту
+* `append(...items: ContentValue[])` - вставляет дочерние элементы в конец родительского
+* `prepend(...items: ContentValue[])` - вставляет дочерние элементы в начало родительского
+* `replace(...items: ContentValue[])` - заменяет контент в компоненте
+* `on<T extends object>(eventName: EventName, handler: (data: T) => void)` - перезаписанное базовое свойство с возможностью вызова по цепочке
+* `bindEvent(sourceEvent: string, targetEvent?: string, data?: object)` - устанавливает кастомное событие на компонент
+* `bindEmitter(emitter: EventEmitter)` - присваивание EventEmitter компоненту
+* `bem(element?: string, modifier?: string): { name: string; class: string }` - перезаписывает базовое свойство с указанием имени родительского компонента в БЭМ нотации
+* `element<T extends Component<any>>(name: string, mode: elementMode = elementMode.parent): T` - поиск компонента среди дочерних
+* `protected assign(data?: object)` - присваивание свойств доступных для записи компоненту
+* `render<DataType extends object>(data?: DataType): NodeType` - вспомогательный метод возвращающий компонент и присваивающий свойства
+* `protected static factory<T extends Component<any>>(this: new (el: unknown, name?: string, emitter?: EventEmitter) => T, el: unknown, data?: any, name?: string, emitter?: EventEmitter): T` - фабричный метод создания компонента
+* `static clone<T>(templateId: string, data?: any, name?: string, emitter?: EventEmitter): T` - клонирование компонента из шаблона
+* `static mount<T>(selectorElement: string, data?: any, name?: string, emitter?: EventEmitter): T` - создание компонента из элемента существующего на странице (не в шаблоне)
+* `init()` - базовая конфигурация компонента
+
+- `readonly name: string` - имя компонента
+- `protected node: NodeType;` - HTML-элемент компонента
+- `protected elements: Record<string, Component<NodeType>>;` - кэш дочерних компонентов
+- `protected events: EventEmitter;` - брокер событий компонента
+- `readonly fieldNames: string[];` - поля доступные для присваивания у компонента
+
+## Классы отвечающие за отображение
+
+### 1. Классы отображения элементов карточек товаров
+
+* `CardBasket extends Component<HTMLElement> implements ICardBasket`
+* `CardGallery extends CardBasket implements ICardGallery`
+* `CardPreview extends CardGallery implements ICardPreview`
+
+```javascript
+interface ICardBasket {
+    id: string
+    title: string
+    price: number | null
+}
+interface ICardGallery extends ICardBasket  {
+  image: string
+  category: string
+}
+interface ICardPreview extends ICardGallery {
+  description: string
+  changeStatus: () => void
+}
+```
+
+Классы содержат свойства с дескрипторами доступа для заполнения информации в соответствующих элементах HTML-шаблонов.  
+Метод `init` - устанавливает обработчики событий на элементы карточек через EventEmitter.
+
+`CardPreview` и `CardGallery` содержат метод `getCategoryStyleModificator(value: string): string` - устанавливающий класс категорий.  
+`CardPreview` имеет дополнительный метод `changeStatus` изменяющий надпись на кнопке превью для удаления/добавления товара в корзину.  
+
+### 2. Класс `Page extends Component<HTMLBodyElement> implements IPage` отображения элемента главной страницы
+
+```javascript
 interface IPage {
-	counter: number;
-	gallery: IGallery;
-}
-
-interface PageConfiguration {
-	modalTemplate: string;
-	contentTemplate: string;
+    count: number
+    lockScroll: (state: boolean) => void
 }
 ```
 
-Собственные методы:
-* `lockScroll(state: boolean)` - блокировка прокрутки страницы при открытии взаимодействии с модальным окном
-* `setCards (cards: ICard[], template: string)` - устанавливает в галерею пришедшие с сервера данные о карточках товаров
+Метод `lockScroll` - блокирует прокрутку страницы. Вызывается при открытии модального окна  
+Свойство `count` - устанавливает количество товаров на значке корзины на главной странице
 
-### 8. `Gallery extends View<HTMLDivElement, IGallery, never, never>`
+### 3. Класс `Gallery extends Component<HTMLDivElement> implements IGallery` отображения элемента галереи 
 
-Описывает поведение галереи
-
-```
-type GalleryItem = View<HTMLElement, object, 'click', never>
+```javascript
 interface IGallery {
-	items: GalleryItem[];
+    setCards: (cardTemplate: string, cardsData: ICard[], emitter: EventEmitter) => void
 }
 ```
 
-### 9.  `Modal extends View< HTMLDivElement, IModal, 'close' | 'open' | 'hide', 'active'>`
+Метод `setCards` - создает карточки галереи и добавляет их к элементу галереи главной страницы
 
-Описывает поведение модального окна
+### 4. Класс `Basket extends Component<HTMLDivElement> implements IBasket` отображения элемента корзины
 
+```javascript
+interface IBasket {
+    total: number;
+    setBasketItems: (basketItemTemplate: string, basketItems: ICard[], emitter: EventEmitter) => void 
+    clearBasket: () => void
+}
 ```
+
+Метод `setBasketItems` - создает, нумерует карточки корзины и добавляет их к элементу корзины  
+Метод `clearBasket` - очищает корзину
+Свойство `total` устанавливает цену в корзине
+
+### 5. Класс `Modal extends Component<HTMLDivElement> implements IModal` отображения элемента модального окна
+
+```javascript
 interface IModal {
-	content: ViewElement;
-	actions: ViewElement[];
+    content: ContentValue;
+    setActive: (state: boolean) => void
+    close: () => void
 }
 ```
 
-Собственные методы:
+Метод `setActive` - переключает видимость модальное окно  
+Метод `close` - закрывает модальное окно, удаляя контент  
+Метод `init` - устанавливает обработчики событий на элементы модального окна через EventEmitter.
+Свойство `content` - устанавливает содержимое модального окна
 
-* `reset()` - очистка модального окна
-* `setActive(state: boolean)` - изменение статуса видимости модального окна
-* `static configure({ modalTemplate }: { modalTemplate: string }): Modal` - установка базового шаблона модального окна
-* `render(modal: IModal)` - отображение контента
-* `close()` - закрытие модального окна
+### 6. Классы отображения ступеней оформления заказа
+
+* Базовый класс: `Form extends Component<HTMLFormElement> implements IForm`  
+* `Order extends Form`
+* `Contacts extends Form`
+
+```javascript
+interface IForm {
+  inputs: Set<Component<HTMLInputElement>>
+  configure(keys: string[]): Set<Component<HTMLInputElement>>
+  validateButton(state: boolean): void
+  showError(error: string[]): void
+}
+```
+
+Метод `showError` - выводит ошибку валидации данных заказа  
+Метод `validateButton` - делает активной/неактивной кнопку перехода на следующий этап оформления заказа  
+Метод `configure` - устанавливает обработчики событий на поля ввода  
+Свойство `inputs` - хранит поля ввода формы заказа
+Дополнительный метод `setActive` в классе `order` - делает активными/неактивными кнопки выбора способа платежа  
+Метод `init` осуществляет базовую настройку форму, устанавливая обработчики событий на элементы формы
+
+### 7. Класс `Success` отображения элемента успешного оформления заказа
+
+## Классы работы с данными
+
+### 1. Класс `OrderData implements IOrder` - работа с данными заказа
+
+```javascript
+interface IOrder {
+    payment: string;
+    email: string;
+    phone: string;
+    address: string;
+    total: number;
+    items: ICard[];
+}
+```
+
+Метод `setProperty<K extends keyof IOrder>(prop: K, propValue: IOrder[K]): void` - заполняет данные заказа приходящие с полей оформления  
+Метод `getOrder(): IOrder` - получение всех данных о заказе  
+Метод `validateForm(prop: string, inputs: Set<Component<HTMLInputElement>>, events: EventEmitter): void` - проверяет корректность введенных данных заказа
+
+### 2. Класс `BasketData implements IBasketData`  
+
+```javascript
+interface IBasketData {
+    count: number
+    total: number
+    items: ICard[]
+    changeItem: (data: ICard) => void
+    hasItem: (data: ICard) => boolean
+    addItem: (data: ICard) => void
+    removeItem: (data: ICard) => void
+    clearBasket: () => void
+}
+```
+
+* `hasItem(data: ICard): boolean` - проверяет наличие товара в корзине
+* `addItem(data: ICard)` - добавляет товар в корзину
+* `removeItem(data: ICard)` - удаляет товар из корзины
+* `clearBasket()` - очищает корзину
+* `changeItem(data: ICard)` - меняет наличие (добавляет/удаляет) товара в корзине
+* `count` - возвращает количество товаров в корзине
+* `total` - возвращает стоимость всех товаров в корзине
+* `items` - возвращает все товары из корзины
+
+
+### 3. Класс `CardData implements ICardData` кэширует данные карточек, пришедшие с сервера
+
+```javascript
+interface ICardData {
+    cache: ICard[]
+    getCardInfo: (id: string) => ICard
+}
+```
+
+Метод `getCardInfo(id: string): ICard` - возвращает карточку из кэша по ее id
+
+## Другие файлы 
+
+В проекте присутствуют функции отображения информации в модальном окне
+* `function showPreview(data: {card: CardGallery, emitter: EventEmitter}` - показ превью
+* `function openBasket(data: {emitter: EventEmitter})` - показ корзины
+* `function makeOrder(data: {emitter: EventEmitter})` - показ оформления заказа (способа платежа и адреса)
+* `function makeContacts(data: {emitter: EventEmitter})` - показ оформления заказа (электронной почты и телефона)
+* `function showSuccess()` - показ успешного оформления заказа
+
+`index.ts` - создает все элементы необходимые для начала работы сайта (страницу, галерею, корзину, модальное окно и классы для работы с данными).  
+Подписывает глобальный брокер событий на все кастомные события, получает данные о карточках товара с сервера
+
+## Описание проекта
+
+Проект состоит: 
+* классы работающие с отображением визуальной составляющей конкретных элементов страницы. Устанавливают события, размещают данные в дочерних элементах. Папка `components/common`
+* классы обрабатывающие данные, используемые для отображения. Кэшируют данные заказа, корзины, карточки, пришедшие с сервера. Позволяют в удобном формате вывести и обработать данные. Папка `components/data`
+* функции запускающие отрисовку конкретных модальных окон. Папка `components/handler`
+* базовые функции, используемые во всех компонентах. Являются расширением функционала стандартных функций JS. Папка `base`
+* файл кастомного API `cardAPI` для выполнения запросов к серверу
+
+Элементы внутри файлов отображения создают кастомные события при вызове стандартных (например клик).  
+Брокер событий подписывается на кастомные события и вызывает необходимые функции.  
+Есть возможность создания брокера событий для конкретного элемента, когда нет необходимости глубоко пробрасывать глобальный брокер.  
+Классы в пределах проекта никак не связаны с другими классами и взаимодействуют только через передаваемые аргументы.  
+
+
 
 

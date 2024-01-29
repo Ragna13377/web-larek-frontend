@@ -3,6 +3,11 @@ export type ApiListResponse<Type> = {
     items: Type[]
 };
 
+export type ApiOrderResponse<Type> = {
+    total: number,
+    id: string
+}
+
 export type ApiPostMethods = 'POST' | 'PUT' | 'DELETE';
 
 export class Api {

@@ -1,16 +1,12 @@
-import {View} from "../base/view";
+import {Component} from "../base/Component";
+import {ICard, IGallery} from "../../types";
+import {CardGallery} from "./cardGallery";
+import {EventEmitter} from "../base/events";
 
-export type GalleryItem = View<HTMLElement, object, 'click', never>
-export interface IGallery {
-  items: GalleryItem[];
-}
-
-export class Gallery extends View<HTMLDivElement, IGallery, never, never> {
-  protected _items: GalleryItem[] = [];
-
-  set items(items: View<HTMLElement, object, 'click', never>[]) {
-    this._items = items;
-    this.clear();
-    this.append(...items.map(item => item.on('click', this.trigger('item-click'))));
+export class Gallery extends Component<HTMLDivElement> implements IGallery {
+  setCards(cardTemplate: string, cardsData: ICard[], emitter: EventEmitter): void{
+    cardsData.forEach(card => {
+      this.append(CardGallery.clone<CardGallery>(cardTemplate, card, 'card', emitter));
+    })
   }
 }
